@@ -14,6 +14,11 @@ data transition : system-state → system-state → Set
 transition : system-state → ℘ system-state
 transition ⟨ t , sb , rb , nt ⟩ = …
 -}
+data pk# : Set where
+  pk0 : pk#
+  pk1 : pk#
+  
+
 -- Define the Sender and receiver Networks
 data principal : Set where
   Sender : principal
@@ -31,8 +36,8 @@ I XNOR I = I
 record Seq (SnumOne SnumTwo : Set) : Set where {- A Sequence -}
   constructor _,_
   field
-    SeqZer : 𝔹  -- Sequence number is either 0 ... false
-    SeqOne : 𝔹  -- 1 ... true
+    SeqZer : pk#  -- Sequence number is either 0 
+    SeqOne : pk#  -- 1
 
 
 -- the message that will be sent from src → dest with info
@@ -64,18 +69,6 @@ data send-state : Set where
    timeout : send-state
    sent  : send-state
 
-
-sequence00 : Seq 𝔹 𝔹
-sequence00 = O , O
-
-sequence01 : Seq 𝔹 𝔹
-sequence01 = O , I
-
-sequence10 : Seq 𝔹 𝔹
-sequence10 = I , O
-
-sequence11 : Seq 𝔹 𝔹
-sequence11 = I , I
 -------------------------------------------------------------------------------------
 -- If the sender sent packet 0 we check status by seeing if we have packet 0 returned
 -- If the packet 0 is returned we move to SeqOne
@@ -98,6 +91,19 @@ data _recv-seq-status_ : 𝔹 →  𝔹  → Set where
   SeqZeroOne : ∀{SeqZero SeqOne} → SeqZero recv-seq-status SeqOne
   SeqOneZero : ∀{SeqZero SeqOne} → SeqOne recv-seq-status SeqZero
   SeqOneOne : ∀{SeqOne} → SeqOne recv-seq-status SeqOne
+
+
+sequence00 : Seq pk# pk#
+sequence00 = pk0 , pk0
+
+sequence01 : Seq pk# pk#
+sequence01 = pk0 , pk1
+
+sequence10 : Seq pk# pk#
+sequence10 = pk1 , pk0
+
+sequence11 : Seq pk# pk#
+sequence11 = pk1 , pk1
 -------------------------------------------------------------------------------------
 
 -- Define a sent packet and determine seq-state
@@ -119,40 +125,120 @@ _ = ↯
 _ : seq-state-snd I I ≡ SeqOneOne
 _ = ↯
 
-rec-state-snd : (seq-stat-fst seq-stat-scnd : 𝔹) → (seq-stat-fst sender-seq-status seq-stat-scnd)
-rec-state-snd I I = SeqOneOne
-rec-state-snd I O = SeqOneZero
-rec-state-snd O I = SeqZeroOne
-rec-state-snd O O = SeqZeroZero
+seq-state-recv : (seq-stat-fst seq-stat-scnd : 𝔹) → (seq-stat-fst recv-seq-status seq-stat-scnd)
+seq-state-recv I I = SeqOneOne
+seq-state-recv I O = SeqOneZero
+seq-state-recv O I = SeqZeroOne
+seq-state-recv O O = SeqZeroZero
 
-_ : rec-state-snd O O ≡ SeqZeroZero
+_ : seq-state-recv O O ≡ SeqZeroZero
 _ = ↯
 
-_ : rec-state-snd O I ≡ SeqZeroOne
+_ : seq-state-recv O I ≡ SeqZeroOne
 _ = ↯
 
-_ : rec-state-snd I O ≡ SeqOneZero
+_ : seq-state-recv I O ≡ SeqOneZero
 _ = ↯
 
-_ : rec-state-snd I I ≡ SeqOneOne
+_ : seq-state-recv I I ≡ SeqOneOne
 _ = ↯
+
+get-seq : (window-send window-recv : pk#) → (Seq pk# pk#)
+get-seq pk1 pk1 = sequence11
+get-seq pk1 pk0 = sequence10
+get-seq pk0 pk1 = sequence01
+get-seq pk0 pk0 = sequence00
+
+
+_ : get-seq pk0 pk0 ≡ sequence00
+_ = ↯
+
+_ : get-seq pk1 pk0 ≡ sequence10
+_ = ↯
+
+_ : get-seq pk0 pk1 ≡ sequence01
+_ = ↯
+
+_ : get-seq pk1 pk1 ≡ sequence11
+_ = ↯
+
 ------------------------------------------------------------------------------------------
 -- Send a message
-send-msg : (sender-node recv-node : principal) (msg-byte : ℕ) (window-seq : Seq 𝔹 𝔹) → 𝔹
-send-msg sender-node recv-node Z window-seq = {!!}
-send-msg sender-node recv-node (S msg-byte) window-seq = {!!}
+-- val1 val2 are used to get sequence 
+send-msg : (sender-node recv-node : principal) (msg-byte : ℕ) (val1 val2 :  𝔹) → 𝔹
+send-msg sender-node recv-node msg-byte val1 val2 = val1 XNOR val2 
 
-_ : send-msg Sender Receiver 0 sequence00 ≡ I
+_ : send-msg Sender Receiver 0 O O  ≡ I
 _ = ↯
 
-_ : send-msg Sender Receiver 0 sequence10 ≡ O
+_ : send-msg Sender Receiver 0 I O ≡ O
 _ = ↯
 
-_ : send-msg Sender Receiver 0 sequence01 ≡ O
+_ : send-msg Sender Receiver 0 O I ≡ O
 _ = ↯
 
-_ : send-msg Sender Receiver 0 sequence11 ≡ I
+_ : send-msg Sender Receiver 0 I I ≡ I
 _ = ↯
+
+
+send-sp-pkt : (expecting actual : pk#) → pk#
+send-sp-pkt pk0 pk0 = pk1
+send-sp-pkt pk0 pk1 = pk0
+send-sp-pkt pk1 pk0 = pk1
+send-sp-pkt pk1 pk1 = pk0
+
+_ : send-sp-pkt pk0 pk0 ≡ pk1
+_ = ↯
+
+_ : send-sp-pkt pk1 pk0 ≡ pk1
+_ = ↯
+
+_ : send-sp-pkt pk1 pk1 ≡ pk0
+_ = ↯
+
+_ : send-sp-pkt pk0 pk1 ≡ pk0
+_ = ↯
+
+record send-sp-pkt-msg : Set where
+  field
+    pk : pk#
+    msg-bit : ℕ
+------------------------------------------------------------------------------------------
+-- Send a message with data stream.
+-- testing with window sequence
+send-msg-beta : (sender-node recv-node : principal) (msg-byte : ℕ) (window-snd window-rcv : pk#) → send-sp-pkt-msg
+send-msg-beta sender-node recv-node msg-byte pk0 pk0 = record { pk = pk1 ; msg-bit = S(msg-byte)}
+-- if expected nak is 0 and received nak is 0: then SUCCESS
+-- send next ack num and next msg-byte
+
+send-msg-beta sender-node recv-node msg-byte pk0 pk1 = record { pk = pk0 ; msg-bit = msg-byte }
+-- if expected nak is 0 and received nak is 1: then we dropped a packed or have a dupe
+-- send current ack again and current  msg-byte again
+
+send-msg-beta sender-node recv-node msg-byte pk1 pk0 = record { pk = pk1 ; msg-bit = msg-byte }
+-- if expected nak is 1 and received nak  0: then we dropped a packet or have a dupe
+-- send current ack num and current msg-byte
+
+send-msg-beta sender-node recv-node msg-byte pk1 pk1 = record { pk = pk0 ; msg-bit = S(msg-byte) }
+-- if expected nak is 1 and received nak is 1: then SUCCESS
+-- send next ack num and next msg-byte
+
+_ : send-msg-beta Sender Receiver 0 pk0 pk0 ≡ record { pk = pk1 ; msg-bit = 1} -- expecting0 receive0 send next byte (1)
+_ = ↯
+
+_ : send-msg-beta Sender Receiver 2 pk0 pk1 ≡ record { pk = pk0 ; msg-bit = 2 } -- expecting0 receive1 send curr byte (2)
+_ = ↯
+
+_ : send-msg-beta Sender Receiver 1 pk1 pk0 ≡ record { pk = pk1 ; msg-bit = 1 } -- expecting1 receive0 send curr byte (1)
+_ = ↯
+
+_ : send-msg-beta Sender Receiver 1 pk1 pk1 ≡ record { pk = pk0 ; msg-bit = 2 } -- expecting1 receive1 send next byte (2)
+_ = ↯
+
+_ : send-msg-beta Sender Receiver 25 pk0 pk0 ≡ record { pk = pk1 ; msg-bit = 26 } -- expecting1 receive1 send next byte (26)
+_  = ↯
+
+-------------------------------------------------------------------------------------------
 
   
  
