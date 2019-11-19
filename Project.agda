@@ -139,8 +139,8 @@ _ = ↯
 ------------------------------------------------------------------------------------------
 -- Send a message
 send-msg : (sender-node recv-node : principal) (msg-byte : ℕ) (window-seq : Seq 𝔹 𝔹) → 𝔹
-send-msg sender-node recv-node Z (SeqZer , SeqOne) = {!!}
-send-msg sender-node recv-node (S msg-byte) (SeqZer , SeqOne) = {!!}
+send-msg sender-node recv-node Z window-seq = {!!}
+send-msg sender-node recv-node (S msg-byte) window-seq = {!!}
 
 _ : send-msg Sender Receiver 0 sequence00 ≡ I
 _ = ↯
