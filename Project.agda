@@ -1,5 +1,5 @@
 module Project where
-open import Basics001
+open import Basics002
 
 {-  
 -- relational semantics
@@ -40,6 +40,12 @@ record Seq (SnumOne SnumTwo : Set) : Set where {- A Sequence -}
     SeqOne : pk#  -- 1
 
 
+-- Define R-Ack or R-Timeout
+data RAT : Set where
+  r-ack : RAT
+  r-time : RAT
+
+
 -- the message that will be sent from src → dest with info
 record msg : Set where
   field
@@ -77,20 +83,12 @@ data send-state : Set where
 -- If pkt 1 is returned move to SeqZero
 
 -- check sender sequence state
-infix 99 _sender-seq-status_
-data _sender-seq-status_ : 𝔹 →  𝔹  → Set where
-  SeqZeroZero : ∀{SeqZero} → SeqZero sender-seq-status SeqZero
-  SeqZeroOne : ∀{SeqZero SeqOne} → SeqZero sender-seq-status SeqOne
-  SeqOneZero : ∀{SeqZero SeqOne} → SeqOne sender-seq-status SeqZero
-  SeqOneOne : ∀{SeqOne} → SeqOne sender-seq-status SeqOne
-
--- check receiver sequence state
-infix 100 _recv-seq-status_
-data _recv-seq-status_ : 𝔹 →  𝔹  → Set where
-  SeqZeroZero : ∀{SeqZero} → SeqZero recv-seq-status SeqZero
-  SeqZeroOne : ∀{SeqZero SeqOne} → SeqZero recv-seq-status SeqOne
-  SeqOneZero : ∀{SeqZero SeqOne} → SeqOne recv-seq-status SeqZero
-  SeqOneOne : ∀{SeqOne} → SeqOne recv-seq-status SeqOne
+infix 99 _seq-status_
+data _seq-status_ : 𝔹 →  𝔹  → Set where
+  SeqZeroZero : ∀{val1} → val1 seq-status val1
+  SeqZeroOne : ∀{val1 val2} → val1 seq-status val2
+  SeqOneZero : ∀{val1 val2} → val2 seq-status val1
+  SeqOneOne : ∀{val2} → val2 seq-status val2
 
 
 sequence00 : Seq pk# pk#
@@ -107,48 +105,28 @@ sequence11 = pk1 , pk1
 -------------------------------------------------------------------------------------
 
 -- Define a sent packet and determine seq-state
-seq-state-snd : (seq-stat-fst seq-stat-scnd : 𝔹) → (seq-stat-fst sender-seq-status seq-stat-scnd)
-seq-state-snd I I = SeqOneOne
-seq-state-snd I O = SeqOneZero
-seq-state-snd O I = SeqZeroOne
-seq-state-snd O O = SeqZeroZero
+seq-state : (seq-stat-fst seq-stat-scnd : 𝔹) → (seq-stat-fst seq-status seq-stat-scnd)
+seq-state O O = SeqZeroZero
+seq-state O I = SeqZeroOne
+seq-state I O = SeqOneZero
+seq-state I I = SeqOneOne
 
-_ : seq-state-snd O O ≡ SeqZeroZero
+
+_ : seq-state O O ≡ SeqZeroZero
 _ = ↯
 
-_ : seq-state-snd O I ≡ SeqZeroOne
+_ : seq-state O I ≡ SeqZeroOne
 _ = ↯
 
-_ : seq-state-snd I O ≡ SeqOneZero
+_ : seq-state I O ≡ SeqOneZero
 _ = ↯
 
-_ : seq-state-snd I I ≡ SeqOneOne
+_ : seq-state I I ≡ SeqOneOne
 _ = ↯
 
-seq-state-recv : (seq-stat-fst seq-stat-scnd : 𝔹) → (seq-stat-fst recv-seq-status seq-stat-scnd)
-seq-state-recv I I = SeqOneOne
-seq-state-recv I O = SeqOneZero
-seq-state-recv O I = SeqZeroOne
-seq-state-recv O O = SeqZeroZero
-
-_ : seq-state-recv O O ≡ SeqZeroZero
-_ = ↯
-
-_ : seq-state-recv O I ≡ SeqZeroOne
-_ = ↯
-
-_ : seq-state-recv I O ≡ SeqOneZero
-_ = ↯
-
-_ : seq-state-recv I I ≡ SeqOneOne
-_ = ↯
 
 get-seq : (window-send window-recv : pk#) → (Seq pk# pk#)
-get-seq pk1 pk1 = sequence11
-get-seq pk1 pk0 = sequence10
-get-seq pk0 pk1 = sequence01
-get-seq pk0 pk0 = sequence00
-
+get-seq window-send  window-recv = window-send , window-recv
 
 _ : get-seq pk0 pk0 ≡ sequence00
 _ = ↯
@@ -160,24 +138,6 @@ _ : get-seq pk0 pk1 ≡ sequence01
 _ = ↯
 
 _ : get-seq pk1 pk1 ≡ sequence11
-_ = ↯
-
-------------------------------------------------------------------------------------------
--- Send a message
--- val1 val2 are used to get sequence 
-send-msg : (sender-node recv-node : principal) (msg-byte : ℕ) (val1 val2 :  𝔹) → 𝔹
-send-msg sender-node recv-node msg-byte val1 val2 = val1 XNOR val2 
-
-_ : send-msg Sender Receiver 0 O O  ≡ I
-_ = ↯
-
-_ : send-msg Sender Receiver 0 I O ≡ O
-_ = ↯
-
-_ : send-msg Sender Receiver 0 O I ≡ O
-_ = ↯
-
-_ : send-msg Sender Receiver 0 I I ≡ I
 _ = ↯
 
 
@@ -239,7 +199,44 @@ _ : send-msg-beta Sender Receiver 25 pk0 pk0 ≡ record { pk = pk1 ; msg-bit = 2
 _  = ↯
 
 -------------------------------------------------------------------------------------------
-
+-- Receive ack or timeout.
+r-a-t : ℕ → pk# → pk# → RAT
+r-a-t msg-byte pk₁ pk₂ =
+  let record { pk = pk′ ; msg-bit = msg-bit′ } = send-msg-beta Sender Receiver msg-byte pk₁ pk₂
+  in r-ack
   
+r-a-t′ : send-sp-pkt-msg → RAT
+r-a-t′ msg = r-time
+
+
+-------------------------------------------------------------------------------------------
+-- Determine state of machine
+machinestate :  (node : principal) (recv-ack-timeout : RAT) → trans-state
+machinestate node r-ack = ready
+machinestate node r-time = waiting
+
+_ : machinestate Sender (r-a-t 0 pk0 pk0) ≡ ready
+_ = ↯
+
+_ : machinestate Receiver (r-a-t 1 pk1 pk0) ≡ ready
+_ = ↯
+
+_ : machinestate Receiver (r-a-t′ (record { pk = pk0 ; msg-bit = 0 })) ≡ waiting
+_ = ↯
+
+_ : machinestate Sender r-ack ≡ ready
+_ = ↯
+
+_ : machinestate Sender r-time ≡ waiting
+_ = ↯
+
+_ : machinestate Receiver r-ack ≡ ready
+_ = ↯
+
+_ : machinestate Receiver r-time ≡ waiting
+_ = ↯
+
+
+
  
 

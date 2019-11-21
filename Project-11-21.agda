@@ -1,5 +1,5 @@
-module Project where
-open import Basics001
+module Project-11-21 where
+open import Basics002
 
 {-  
 -- relational semantics
@@ -242,7 +242,7 @@ _ : send-msg-beta Sender Receiver 25 pk0 pk0 ≡ record { pk = pk1 ; msg-bit = 2
 _  = ↯
 
 -------------------------------------------------------------------------------------------
-
+postulate RAT
 r-a-t : ℕ → pk# → pk# → RAT
 r-a-t msg-byte pk₁ pk₂ =
   let record { pk = pk′ ; msg-bit = msg-bit′ } = send-msg-beta {!!} {!!} msg-byte pk₁ pk₂
