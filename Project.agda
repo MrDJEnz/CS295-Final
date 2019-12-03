@@ -224,6 +224,12 @@ _ = ↯
 _ : machinestate Receiver (r-a-t′ (record { pk = pk0 ; msg-bit = 0 })) ≡ waiting
 _ = ↯
 
+_ : machinestate Sender (r-a-t′ (record { pk = pk0 ; msg-bit = 1 })) ≡ waiting
+_ = ↯
+
+_ : machinestate Sender (r-a-t′ {!!}) ≡ {!!}
+_ = ↯
+
 _ : machinestate Sender r-ack ≡ ready
 _ = ↯
 
